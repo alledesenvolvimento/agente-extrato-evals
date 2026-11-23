@@ -224,14 +224,14 @@ Verificação com Ruff:
 Verificação de tipos com MyPy:
 
 ```powershell
-.\.venv\Scripts\python.exe -m mypy src
+.\.venv\Scripts\python.exe -m mypy src tests
 ```
 
 ### Validação registrada durante o desenvolvimento
 
-- 16 testes automatizados aprovados.
+- 18 testes automatizados aprovados.
 - Ruff: `All checks passed!`.
-- MyPy: sem problemas em 4 arquivos de código-fonte.
+- MyPy: sem problemas em 8 arquivos verificados em src e tests.
 
 ## Resultado de referência
 
