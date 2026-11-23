@@ -1,0 +1,154 @@
+{
+  "data_execucao": "2026-11-23T15:27:44-03:00",
+  "modelo": "gpt-6.2-sol",
+  "resumo": {
+    "total_casos": 20,
+    "aprovados": 20,
+    "reprovados": 0,
+    "taxa_aprovacao_percentual": 100.0,
+    "movimentacoes_esperadas": 27,
+    "movimentacoes_extraidas": 27
+  },
+  "casos": [
+    {
+      "id": 1,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 2,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 3,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 2,
+      "movimentacoes_extraidas": 2,
+      "erro": null
+    },
+    {
+      "id": 4,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 5,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 0,
+      "movimentacoes_extraidas": 0,
+      "erro": null
+    },
+    {
+      "id": 6,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 3,
+      "movimentacoes_extraidas": 3,
+      "erro": null
+    },
+    {
+      "id": 7,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 8,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 9,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 10,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 2,
+      "movimentacoes_extraidas": 2,
+      "erro": null
+    },
+    {
+      "id": 11,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 3,
+      "movimentacoes_extraidas": 3,
+      "erro": null
+    },
+    {
+      "id": 12,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 13,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 0,
+      "movimentacoes_extraidas": 0,
+      "erro": null
+    },
+    {
+      "id": 14,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 2,
+      "movimentacoes_extraidas": 2,
+      "erro": null
+    },
+    {
+      "id": 15,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 16,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 17,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 18,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 2,
+      "movimentacoes_extraidas": 2,
+      "erro": null
+    },
+    {
+      "id": 19,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 20,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 2,
+      "movimentacoes_extraidas": 2,
+      "erro": null
+    }
+  ]
+}
