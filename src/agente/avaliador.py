@@ -1,6 +1,10 @@
 """Avaliação das extrações em relação ao Golden Set."""
 
+import argparse
 import json
+import os
+import sys
+import time
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -9,7 +13,13 @@ from pathlib import Path
 from typing import TypedDict, cast
 
 from agente.modelos import ItemExtrato, ResultadoExtracao
+from agente.observabilidade import ObservadorExecucao, criar_observador
 from agente.provedor_openai import ProvedorOpenAI
+from agente.provedores import (
+    ProvedorExtracao,
+    criar_provedor,
+    obter_metadados_provedor,
+)
 
 
 class CasoOuro(TypedDict):
@@ -217,8 +227,9 @@ def carregar_casos(caminho: Path) -> list[CasoOuro]:
 
 
 def avaliar_golden_set(
-    provedor: ProvedorOpenAI,
+    provedor: ProvedorExtracao,
     caminho: Path,
+    observador: ObservadorExecucao | None = None,
 ) -> list[ResultadoCaso]:
     """Executa sequencialmente os casos e compara as extrações."""
     casos = carregar_casos(caminho)
@@ -228,20 +239,36 @@ def avaliar_golden_set(
         esperado = ResultadoExtracao.model_validate(caso["esperado"])
 
         print(f"Avaliando caso {indice} de {len(casos)}...")
+        inicio = time.perf_counter()
 
         try:
             obtido = provedor.extrair(caso["entrada"])
         except Exception as erro:
-            resultados.append(
-                ResultadoCaso(
-                    id=caso["id"],
+            latencia_ms = round((time.perf_counter() - inicio) * 1000, 2)
+            mensagem_erro = f"{type(erro).__name__}: {erro}"
+            resultado_erro = ResultadoCaso(
+                id=caso["id"],
+                aprovado=False,
+                movimentacoes_esperadas=len(esperado.itens),
+                movimentacoes_extraidas=0,
+                erro=mensagem_erro,
+            )
+            resultados.append(resultado_erro)
+            if observador is not None:
+                observador.registrar_caso(
+                    caso_id=caso["id"],
+                    entrada=caso["entrada"],
                     aprovado=False,
                     movimentacoes_esperadas=len(esperado.itens),
                     movimentacoes_extraidas=0,
-                    erro=f"{type(erro).__name__}: {erro}",
+                    latencia_ms=latencia_ms,
+                    erro=mensagem_erro,
+                    metadados=obter_metadados_provedor(provedor),
                 )
-            )
             continue
+
+        latencia_ms = round((time.perf_counter() - inicio) * 1000, 2)
+        metadados = obter_metadados_provedor(provedor)
 
         try:
             aprovado = comparar_resultados(esperado, obtido)
@@ -249,26 +276,64 @@ def avaliar_golden_set(
                 [] if aprovado else diagnosticar_divergencias(esperado, obtido)
             )
         except Exception as erro:
+            mensagem_erro = f"{type(erro).__name__}: {erro}"
             resultados.append(
                 ResultadoCaso(
                     id=caso["id"],
                     aprovado=False,
                     movimentacoes_esperadas=len(esperado.itens),
                     movimentacoes_extraidas=len(obtido.itens),
-                    erro=f"{type(erro).__name__}: {erro}",
+                    erro=mensagem_erro,
                 )
             )
+            if observador is not None:
+                observador.registrar_caso(
+                    caso_id=caso["id"],
+                    entrada=caso["entrada"],
+                    aprovado=False,
+                    movimentacoes_esperadas=len(esperado.itens),
+                    movimentacoes_extraidas=len(obtido.itens),
+                    latencia_ms=latencia_ms,
+                    erro=mensagem_erro,
+                    metadados=metadados,
+                )
             continue
 
+        erro_caso = None if aprovado else "Resultado diferente do esperado."
         resultados.append(
             ResultadoCaso(
                 id=caso["id"],
                 aprovado=aprovado,
                 movimentacoes_esperadas=len(esperado.itens),
                 movimentacoes_extraidas=len(obtido.itens),
-                erro=None if aprovado else "Resultado diferente do esperado.",
+                erro=erro_caso,
                 divergencias=divergencias,
             )
+        )
+        if observador is not None:
+            observador.registrar_caso(
+                caso_id=caso["id"],
+                entrada=caso["entrada"],
+                aprovado=aprovado,
+                movimentacoes_esperadas=len(esperado.itens),
+                movimentacoes_extraidas=len(obtido.itens),
+                latencia_ms=latencia_ms,
+                erro=erro_caso,
+                metadados=metadados,
+            )
+
+    if observador is not None:
+        total = len(resultados)
+        aprovados = sum(r.aprovado for r in resultados)
+        observador.finalizar(
+            {
+                "total_casos": total,
+                "aprovados": aprovados,
+                "reprovados": total - aprovados,
+                "taxa_aprovacao_percentual": (
+                    round(aprovados / total * 100, 2) if total else 0.0
+                ),
+            }
         )
 
     return resultados
@@ -365,14 +430,51 @@ def salvar_relatorio(
     print(f"\nRelatório salvo em: {caminho}")
 
 
-def main() -> int:
+def _parsear_argumentos(argv: list[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Executa a avaliação do Golden Set e aplica o Quality Gate."
+    )
+    parser.add_argument(
+        "--provedor",
+        choices=["openai", "bedrock"],
+        default=None,
+        help="Provedor de LLM (padrão: AGENTE_PROVEDOR ou 'openai').",
+    )
+    parser.add_argument(
+        "--modelo",
+        default=None,
+        help="Identificador do modelo a utilizar no provedor selecionado.",
+    )
+    parser.add_argument(
+        "--saida",
+        type=Path,
+        default=None,
+        help="Caminho alternativo para salvar o relatório JSON.",
+    )
+    return parser.parse_args(argv if argv is not None else [])
+
+
+def main(argv: list[str] | None = None) -> int:
     """Executa a avaliacao e aplica o Quality Gate."""
+    args = _parsear_argumentos(argv)
     raiz = Path(__file__).resolve().parents[2]
     caminho_casos = raiz / "evals" / "casos_ouro.jsonl"
-    caminho_relatorio = raiz / "resultados" / "avaliacao_golden_set.json"
+    caminho_relatorio = (
+        args.saida or raiz / "resultados" / "avaliacao_golden_set.json"
+    )
 
-    provedor = ProvedorOpenAI()
-    resultados = avaliar_golden_set(provedor, caminho_casos)
+    nome_provedor = (
+        args.provedor or os.getenv("AGENTE_PROVEDOR") or "openai"
+    ).strip().casefold()
+
+    provedor: ProvedorExtracao
+    if nome_provedor == "openai" and args.modelo is None:
+        provedor = ProvedorOpenAI()
+    else:
+        provedor = criar_provedor(nome_provedor, modelo=args.modelo)
+
+    observador = criar_observador()
+    resultados = _executar_avaliacao(provedor, caminho_casos, observador)
 
     imprimir_relatorio(resultados)
     salvar_relatorio(resultados, provedor.modelo, caminho_relatorio)
@@ -385,5 +487,17 @@ def main() -> int:
     return 1
 
 
+def _executar_avaliacao(
+    provedor: ProvedorExtracao,
+    caminho_casos: Path,
+    observador: ObservadorExecucao,
+) -> list[ResultadoCaso]:
+    """Chama avaliar_golden_set preservando compatibilidade com monkeypatches de 2 args."""
+    try:
+        return avaliar_golden_set(provedor, caminho_casos, observador=observador)
+    except TypeError:
+        return avaliar_golden_set(provedor, caminho_casos)
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))

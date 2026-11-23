@@ -81,3 +81,47 @@ def test_main_retorna_um_quando_quality_gate_reprova(
 
     assert codigo_saida == 1
     assert eventos == ["imprimir", "salvar", "quality_gate"]
+
+
+def test_main_seleciona_provedor_via_cli_e_salva_em_saida_customizada(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: object,
+) -> None:
+    from pathlib import Path
+
+    assert isinstance(tmp_path, Path)
+    provedores_criados: list[tuple[str | None, str | None]] = []
+
+    def criar_provedor_falso(
+        nome_provedor: str | None = None,
+        *,
+        modelo: str | None = None,
+        **_kwargs: object,
+    ) -> ProvedorFalso:
+        provedores_criados.append((nome_provedor, modelo))
+        return ProvedorFalso()
+
+    monkeypatch.setattr(avaliador, "criar_provedor", criar_provedor_falso)
+    monkeypatch.setattr(
+        avaliador,
+        "avaliar_golden_set",
+        lambda _provedor, _caminho, **_kw: criar_resultados(True),
+    )
+    caminho_saida = tmp_path / "relatorio_bedrock.json"
+
+    codigo_saida = avaliador.main(
+        [
+            "--provedor",
+            "bedrock",
+            "--modelo",
+            "anthropic.claude-3-5-haiku-20241022-v1:0",
+            "--saida",
+            str(caminho_saida),
+        ]
+    )
+
+    assert codigo_saida == 0
+    assert provedores_criados == [
+        ("bedrock", "anthropic.claude-3-5-haiku-20241022-v1:0")
+    ]
+    assert caminho_saida.exists()
