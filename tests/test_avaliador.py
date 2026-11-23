@@ -680,3 +680,117 @@ def test_diagnostica_descricao_normalizada_com_valor_divergente() -> None:
             "obtido": 150.01,
         }
     ]
+
+
+def test_duas_avaliacoes_consecutivas_sao_independentes(
+    tmp_path: Path,
+) -> None:
+    item_esperado = {
+        "descricao": "PIX RECEBIDO",
+        "valor": 150.00,
+        "data": "2026-01-05",
+        "fonte": {
+            "documento": "extrato.pdf",
+            "pagina": 1,
+        },
+    }
+
+    caso = {
+        "id": 1,
+        "entrada": "Extrato ficticio para teste de isolamento.",
+        "esperado": {"itens": [item_esperado]},
+    }
+
+    caminho_casos = tmp_path / "casos_ouro.jsonl"
+    caminho_casos.write_text(
+        json.dumps(caso),
+        encoding="utf-8",
+    )
+
+    resultado_obtido = ResultadoExtracao.model_validate({"itens": [item_esperado]})
+    provedor = ProvedorSempreSucesso(resultado_obtido)
+
+    primeira_execucao = avaliar_golden_set(
+        cast(ProvedorOpenAI, provedor),
+        caminho_casos,
+    )
+
+    segunda_execucao = avaliar_golden_set(
+        cast(ProvedorOpenAI, provedor),
+        caminho_casos,
+    )
+
+    assert primeira_execucao is not segunda_execucao
+    assert len(primeira_execucao) == 1
+    assert len(segunda_execucao) == 1
+    assert primeira_execucao[0].aprovado is True
+    assert segunda_execucao[0].aprovado is True
+
+    primeira_execucao.append(
+        ResultadoCaso(
+            id=99,
+            aprovado=False,
+            movimentacoes_esperadas=1,
+            movimentacoes_extraidas=0,
+        )
+    )
+
+    assert len(primeira_execucao) == 2
+    assert len(segunda_execucao) == 1
+    assert segunda_execucao[0].id == 1
+    assert provedor.chamadas == 2
+
+
+def test_salva_relatorios_de_avaliacoes_independentes(
+    tmp_path: Path,
+) -> None:
+    caminho_original = tmp_path / "avaliacao_golden_set.json"
+    caminho_regressao = tmp_path / "avaliacao_regressao.json"
+
+    resultados_original = [
+        ResultadoCaso(
+            id=1,
+            aprovado=True,
+            movimentacoes_esperadas=1,
+            movimentacoes_extraidas=1,
+        )
+    ]
+
+    resultados_regressao = [
+        ResultadoCaso(
+            id=1,
+            aprovado=False,
+            movimentacoes_esperadas=1,
+            movimentacoes_extraidas=0,
+            erro="Falha experimental simulada.",
+        )
+    ]
+
+    salvar_relatorio(
+        resultados_original,
+        "modelo-original",
+        caminho_original,
+    )
+
+    salvar_relatorio(
+        resultados_regressao,
+        "modelo-regressao",
+        caminho_regressao,
+        variante_prompt="regressao-v1",
+    )
+
+    assert caminho_original.exists()
+    assert caminho_regressao.exists()
+
+    dados_original = json.loads(caminho_original.read_text(encoding="utf-8"))
+    dados_regressao = json.loads(caminho_regressao.read_text(encoding="utf-8"))
+
+    assert dados_original["modelo"] == "modelo-original"
+    assert dados_original["resumo"]["aprovados"] == 1
+    assert dados_original["resumo"]["reprovados"] == 0
+
+    assert dados_regressao["modelo"] == "modelo-regressao"
+    assert dados_regressao["variante_prompt"] == "regressao-v1"
+    assert dados_regressao["resumo"]["aprovados"] == 0
+    assert dados_regressao["resumo"]["reprovados"] == 1
+    assert dados_regressao["casos"][0]["erro"] == ("Falha experimental simulada.")
