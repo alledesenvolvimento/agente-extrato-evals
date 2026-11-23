@@ -1,10 +1,17 @@
-
 """Integração com a API da OpenAI para extração de extratos."""
 
 from dotenv import load_dotenv
 from openai import OpenAI
 
 from agente.modelos import ResultadoExtracao
+
+PROMPT_ORIGINAL = (
+    "Extraia as movimentações bancárias do texto fornecido. "
+    "Não invente informações. Preserve a descrição, a data "
+    "e o valor. Valores positivos representam créditos e "
+    "valores negativos representam débitos. Informe o "
+    "documento e a página de origem de cada movimentação."
+)
 
 
 class ProvedorOpenAI:
@@ -14,9 +21,11 @@ class ProvedorOpenAI:
         self,
         modelo: str = "gpt-6.2-sol",
         cliente: OpenAI | None = None,
+        instrucoes: str = PROMPT_ORIGINAL,
     ) -> None:
         load_dotenv()
         self.modelo = modelo
+        self.instrucoes = instrucoes
         self.cliente = cliente or OpenAI()
 
     def extrair(self, texto: str) -> ResultadoExtracao:
@@ -27,13 +36,7 @@ class ProvedorOpenAI:
             input=[
                 {
                     "role": "system",
-                    "content": (
-                        "Extraia as movimentações bancárias do texto fornecido. "
-                        "Não invente informações. Preserve a descrição, a data "
-                        "e o valor. Valores positivos representam créditos e "
-                        "valores negativos representam débitos. Informe o "
-                        "documento e a página de origem de cada movimentação."
-                    ),
+                    "content": self.instrucoes,
                 },
                 {
                     "role": "user",

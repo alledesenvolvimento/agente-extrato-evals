@@ -1,0 +1,155 @@
+{
+  "data_execucao": "2026-11-23T17:12:25-03:00",
+  "modelo": "gpt-6.2-sol",
+  "variante_prompt": "regressao-v1",
+  "resumo": {
+    "total_casos": 20,
+    "aprovados": 9,
+    "reprovados": 11,
+    "taxa_aprovacao_percentual": 45.0,
+    "movimentacoes_esperadas": 27,
+    "movimentacoes_extraidas": 27
+  },
+  "casos": [
+    {
+      "id": 1,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 2,
+      "status": "reprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": "Resultado diferente do esperado."
+    },
+    {
+      "id": 3,
+      "status": "reprovado",
+      "movimentacoes_esperadas": 2,
+      "movimentacoes_extraidas": 2,
+      "erro": "Resultado diferente do esperado."
+    },
+    {
+      "id": 4,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 5,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 0,
+      "movimentacoes_extraidas": 0,
+      "erro": null
+    },
+    {
+      "id": 6,
+      "status": "reprovado",
+      "movimentacoes_esperadas": 3,
+      "movimentacoes_extraidas": 3,
+      "erro": "Resultado diferente do esperado."
+    },
+    {
+      "id": 7,
+      "status": "reprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": "Resultado diferente do esperado."
+    },
+    {
+      "id": 8,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 9,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 10,
+      "status": "reprovado",
+      "movimentacoes_esperadas": 2,
+      "movimentacoes_extraidas": 2,
+      "erro": "Resultado diferente do esperado."
+    },
+    {
+      "id": 11,
+      "status": "reprovado",
+      "movimentacoes_esperadas": 3,
+      "movimentacoes_extraidas": 3,
+      "erro": "Resultado diferente do esperado."
+    },
+    {
+      "id": 12,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 13,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 0,
+      "movimentacoes_extraidas": 0,
+      "erro": null
+    },
+    {
+      "id": 14,
+      "status": "reprovado",
+      "movimentacoes_esperadas": 2,
+      "movimentacoes_extraidas": 2,
+      "erro": "Resultado diferente do esperado."
+    },
+    {
+      "id": 15,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 16,
+      "status": "reprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": "Resultado diferente do esperado."
+    },
+    {
+      "id": 17,
+      "status": "reprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": "Resultado diferente do esperado."
+    },
+    {
+      "id": 18,
+      "status": "reprovado",
+      "movimentacoes_esperadas": 2,
+      "movimentacoes_extraidas": 2,
+      "erro": "Resultado diferente do esperado."
+    },
+    {
+      "id": 19,
+      "status": "aprovado",
+      "movimentacoes_esperadas": 1,
+      "movimentacoes_extraidas": 1,
+      "erro": null
+    },
+    {
+      "id": 20,
+      "status": "reprovado",
+      "movimentacoes_esperadas": 2,
+      "movimentacoes_extraidas": 2,
+      "erro": "Resultado diferente do esperado."
+    }
+  ]
+}

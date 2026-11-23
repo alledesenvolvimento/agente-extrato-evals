@@ -2,7 +2,7 @@
 
 import json
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -29,6 +29,7 @@ class ResultadoCaso:
     movimentacoes_esperadas: int
     movimentacoes_extraidas: int
     erro: str | None = None
+    divergencias: list[dict[str, object]] = field(default_factory=list)
 
 
 LIMITE_APROVACAO = 90.0
@@ -74,6 +75,136 @@ def comparar_resultados(
     return itens_esperados == itens_obtidos
 
 
+
+def diagnosticar_divergencias(
+    esperado: ResultadoExtracao,
+    obtido: ResultadoExtracao,
+) -> list[dict[str, object]]:
+    """Identifica campos divergentes e movimentacoes ausentes ou extras."""
+    campos_esperados = [
+        "descricao",
+        "valor",
+        "data",
+        "fonte.documento",
+        "fonte.pagina",
+    ]
+
+    def extrair_campos(item: ItemExtrato) -> dict[str, object]:
+        return {
+            "descricao": item.descricao,
+            "valor": item.valor,
+            "data": item.data.isoformat(),
+            "fonte.documento": item.fonte.documento,
+            "fonte.pagina": item.fonte.pagina,
+        }
+
+    def campos_equivalentes(
+        campo: str,
+        valor_a: object,
+        valor_b: object,
+    ) -> bool:
+        if campo == "descricao":
+            return normalizar_descricao(str(valor_a)) == normalizar_descricao(
+                str(valor_b)
+            )
+
+        if campo == "valor":
+            valor_a_decimal = Decimal(str(valor_a)).quantize(Decimal("0.01"))
+            valor_b_decimal = Decimal(str(valor_b)).quantize(Decimal("0.01"))
+            return valor_a_decimal == valor_b_decimal
+
+        return valor_a == valor_b
+
+    itens_esperados = list(esperado.itens)
+    itens_obtidos = list(obtido.itens)
+
+    # Remove primeiro as movimentacoes que ja sao identicas.
+    restantes_obtidos: list[ItemExtrato] = []
+
+    for item_obtido in itens_obtidos:
+        chave = chave_item(item_obtido)
+
+        indice = next(
+            (
+                indice
+                for indice, item_esperado in enumerate(itens_esperados)
+                if chave_item(item_esperado) == chave
+            ),
+            None,
+        )
+
+        if indice is None:
+            restantes_obtidos.append(item_obtido)
+        else:
+            itens_esperados.pop(indice)
+
+    divergencias: list[dict[str, object]] = []
+
+    # Ordena os itens para que o diagnostico nao dependa da ordem original.
+    itens_esperados.sort(key=chave_item)
+    restantes_obtidos.sort(key=chave_item)
+
+    # Procura os pares com maior quantidade de campos coincidentes.
+    while itens_esperados and restantes_obtidos:
+        melhor_par: tuple[int, int, int] | None = None
+
+        for indice_esperado, item_esperado in enumerate(itens_esperados):
+            campos_a = extrair_campos(item_esperado)
+
+            for indice_obtido, item_obtido in enumerate(restantes_obtidos):
+                campos_b = extrair_campos(item_obtido)
+
+                coincidencias = sum(
+                    campos_equivalentes(campo, campos_a[campo], campos_b[campo])
+                    for campo in campos_esperados
+                )
+
+                candidato = (
+                    -coincidencias,
+                    indice_esperado,
+                    indice_obtido,
+                )
+
+                if melhor_par is None or candidato < melhor_par:
+                    melhor_par = candidato
+
+        if melhor_par is None or melhor_par[0] == 0:
+            break
+
+        _, indice_esperado, indice_obtido = melhor_par
+
+        campos_a = extrair_campos(itens_esperados.pop(indice_esperado))
+        campos_b = extrair_campos(restantes_obtidos.pop(indice_obtido))
+
+        for campo in campos_esperados:
+            if not campos_equivalentes(campo, campos_a[campo], campos_b[campo]):
+                divergencias.append(
+                    {
+                        "tipo": "campo_divergente",
+                        "campo": campo,
+                        "esperado": campos_a[campo],
+                        "obtido": campos_b[campo],
+                    }
+                )
+
+    for item in itens_esperados:
+        divergencias.append(
+            {
+                "tipo": "movimentacao_ausente",
+                "esperado": extrair_campos(item),
+            }
+        )
+
+    for item in restantes_obtidos:
+        divergencias.append(
+            {
+                "tipo": "movimentacao_extra",
+                "obtido": extrair_campos(item),
+            }
+        )
+
+    return divergencias
+
 def carregar_casos(caminho: Path) -> list[CasoOuro]:
     """Carrega os casos do Golden Set a partir de um arquivo JSONL."""
     linhas = caminho.read_text(encoding="utf-8").splitlines()
@@ -112,7 +243,22 @@ def avaliar_golden_set(
             )
             continue
 
-        aprovado = comparar_resultados(esperado, obtido)
+        try:
+            aprovado = comparar_resultados(esperado, obtido)
+            divergencias = (
+                [] if aprovado else diagnosticar_divergencias(esperado, obtido)
+            )
+        except Exception as erro:
+            resultados.append(
+                ResultadoCaso(
+                    id=caso["id"],
+                    aprovado=False,
+                    movimentacoes_esperadas=len(esperado.itens),
+                    movimentacoes_extraidas=len(obtido.itens),
+                    erro=f"{type(erro).__name__}: {erro}",
+                )
+            )
+            continue
 
         resultados.append(
             ResultadoCaso(
@@ -121,6 +267,7 @@ def avaliar_golden_set(
                 movimentacoes_esperadas=len(esperado.itens),
                 movimentacoes_extraidas=len(obtido.itens),
                 erro=None if aprovado else "Resultado diferente do esperado.",
+                divergencias=divergencias,
             )
         )
 
@@ -166,6 +313,7 @@ def salvar_relatorio(
     resultados: list[ResultadoCaso],
     modelo: str,
     caminho: Path,
+    variante_prompt: str | None = None,
 ) -> None:
     """Salva os resultados da avaliação em um arquivo JSON."""
     total = len(resultados)
@@ -184,6 +332,7 @@ def salvar_relatorio(
             timespec="seconds"
         ),
         "modelo": modelo,
+        "variante_prompt": variante_prompt,
         "resumo": {
             "total_casos": total,
             "aprovados": aprovados,
@@ -201,6 +350,7 @@ def salvar_relatorio(
                 "movimentacoes_esperadas": resultado.movimentacoes_esperadas,
                 "movimentacoes_extraidas": resultado.movimentacoes_extraidas,
                 "erro": resultado.erro,
+                "divergencias": resultado.divergencias,
             }
             for resultado in resultados
         ],
